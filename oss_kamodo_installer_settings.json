@@ -1,0 +1,6 @@
+{
+    "env_name": "oss_test_kamodo",
+    "packages": [
+        "netCDF4", "cdflib", "astropy", "ipython", "jupyter", "h5py", "sgp4"
+    ]
+}
