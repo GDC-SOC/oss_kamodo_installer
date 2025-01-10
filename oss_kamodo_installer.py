@@ -42,7 +42,7 @@ def read_settings(json_file):
         with open(json_file, 'r') as file:
             settings = json.load(file)
     except Exception as e:
-        print(f"Error reading JSON file: {e}")
+        logging.error(f"Error reading JSON file: {e}")
         sys.exit(1)
     
     # Apply defaults if keys are missing
