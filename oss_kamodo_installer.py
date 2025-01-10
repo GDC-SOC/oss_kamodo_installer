@@ -3,6 +3,38 @@ import os
 import subprocess
 import sys
 import shutil
+import os
+import logging
+from datetime import datetime
+
+# Configure Logging
+# Ensure the 'logs/' directory exists
+log_dir = 'logs'
+if not os.path.exists(log_dir):
+    os.makedirs(log_dir)
+
+# Generate log filename with date and time
+current_time = datetime.now().strftime('%Y%m%d_%H%M%S')
+log_filename = os.path.join(log_dir, f'oss_kamodo_installer_{current_time}.log')
+    
+# Configure the logger
+logging.basicConfig(
+    level=logging.INFO,  # Default logging level
+    format='%(asctime)s - %(levelname)s - %(message)s',  # Log message format
+    filename=log_filename,  # File to store logs
+    filemode='a'  # Append to the log file
+)
+
+# Add a console handler for real-time output
+console_handler = logging.StreamHandler()
+console_handler.setLevel(logging.INFO)
+console_formatter = logging.Formatter('%(levelname)s - %(message)s')
+console_handler.setFormatter(console_formatter)
+logging.getLogger().addHandler(console_handler)
+
+# Log the initialization message as the first line in the log
+initial_message = f"Log file created: {log_filename}"
+logging.info(initial_message)
 
 def read_settings(json_file):
     """Reads settings from a JSON file and applies defaults."""
