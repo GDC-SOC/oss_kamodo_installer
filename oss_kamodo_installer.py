@@ -1,22 +1,37 @@
+"""
+OSS Kamodo Installer
+
+This script automates the setup and management of a Conda environment 
+for the Kamodo framework. It handles environment creation, package 
+installation, Kamodo setup, and Jupyter kernel configuration.
+
+Features:
+- Reads configuration from `oss_kamodo_installer_settings.json`.
+- Provides a `--clean` option to delete the environment.
+- Logs actions and errors to a timestamped file in the `logs/` directory.
+
+Usage:
+- To set up the environment: `python oss_kamodo_installer.py`
+- To remove the environment: `python oss_kamodo_installer.py --clean`
+"""
 import json
 import os
 import subprocess
 import sys
 import shutil
-import os
 import logging
 from datetime import datetime
 
 # Configure Logging
 # Ensure the 'logs/' directory exists
-log_dir = 'logs'
-if not os.path.exists(log_dir):
-    os.makedirs(log_dir)
+LOG_DIR = 'logs'
+if not os.path.exists(LOG_DIR):
+    os.makedirs(LOG_DIR)
 
 # Generate log filename with date and time
 current_time = datetime.now().strftime('%Y%m%d_%H%M%S')
-log_filename = os.path.join(log_dir, f'oss_kamodo_installer_{current_time}.log')
-    
+log_filename = os.path.join(LOG_DIR, f'oss_kamodo_installer_{current_time}.log')
+
 # Configure the logger
 logging.basicConfig(
     level=logging.INFO,  # Default logging level
@@ -33,8 +48,8 @@ console_handler.setFormatter(console_formatter)
 logging.getLogger().addHandler(console_handler)
 
 # Log the initialization message as the first line in the log
-initial_message = f"Log file created: {log_filename}"
-logging.info(initial_message)
+INITIAL_MESSAGE = f"Log file created: {log_filename}"
+logging.info(INITIAL_MESSAGE)
 
 def read_settings(json_file):
     """Reads settings from a JSON file and applies defaults."""
@@ -44,11 +59,12 @@ def read_settings(json_file):
     except Exception as e:
         logging.error(f"Error reading JSON file: {e}")
         sys.exit(1)
-    
+
     # Apply defaults if keys are missing
     settings.setdefault("env_name", "Kamodo_env")
     settings.setdefault("packages", [
-        "netCDF4", "cdflib", "astropy", "ipython", "jupyter", "h5py", "sgp4", "spacepy", "hapiclient"
+        "netCDF4", "cdflib", "astropy", "ipython",
+        "jupyter", "h5py", "sgp4", "spacepy", "hapiclient"
     ])
     return settings
 
@@ -66,7 +82,12 @@ def create_mamba_env(env_name):
 def install_packages(env_name, packages):
     """Installs packages in the Conda environment using Mamba."""
     try:
-        subprocess.check_call(["mamba", "install", "-n", env_name, "-c", "conda-forge"] + packages + ["-y"])
+        subprocess.check_call(["mamba",
+                               "install",
+                               "-n",
+                               env_name,
+                               "-c",
+                               "conda-forge"] + packages + ["-y"])
         logging.info(f"Packages installed successfully in environment '{env_name}'.")
 
     except Exception as e:
@@ -77,7 +98,9 @@ def install_kamodo_ccmc(env_name):
     """Clones and installs the kamodo_ccmc package."""
     git_executable = shutil.which("git")
     if not git_executable:
-        logging.error("Git is not installed or not found in PATH. Please install Git and try again.")
+        logging.error(
+            "Git is not installed or not found in PATH. Please install Git and try again."
+        )
         sys.exit(1)
 
     repo_url = "https://github.com/nasa/Kamodo.git"
@@ -87,7 +110,7 @@ def install_kamodo_ccmc(env_name):
         if os.path.exists(clone_dir):
             logging.info(f"Directory '{clone_dir}' already exists. Deleting it to proceed.")
             shutil.rmtree(clone_dir)
-        
+
         logging.info("Cloning the Kamodo repository...")
         subprocess.check_call([git_executable, "clone", repo_url, clone_dir])
         logging.info("Repository cloned successfully.")
@@ -121,32 +144,61 @@ def tear_down_env(env_name):
     """Deletes the Conda environment."""
     try:
         subprocess.check_call(["conda", "env", "remove", "-n", env_name, "-y"])
-        logging.info(f"Conda environment '{env_name}' has been removed.")
-    except Exception as e:
-        logging.error(f"Error removing Conda environment '{env_name}': {e}")
+        logging.info("Conda environment '%s' has been removed.", env_name)
+    except subprocess.CalledProcessError as e:
+        logging.error("Failed to remove Conda environment '%s'. Process error: %s", env_name, e)
+        sys.exit(1)
+    except FileNotFoundError as e:
+        logging.error(
+            "The 'conda' command was not found. Ensure Conda is installed and in PATH. Error: %s",
+            e)
         sys.exit(1)
 
 def main():
+    """
+    Main function for setting up or cleaning up a Conda environment for the Kamodo installer.
+
+    This function reads user settings from a JSON file, creates a Conda environment using Mamba,
+    installs required packages, installs Kamodo, and enables the Jupyter kernel for the environment.
+    It also provides an option to clean up (tear down) the environment if specified via a 
+    command-line argument.
+
+    Workflow:
+    1. Reads settings from a JSON file (`oss_kamodo_installer_settings.json`).
+    2. Checks for the `--clean` flag in command-line arguments to tear down the environment.
+    3. Creates the Conda environment if the `--clean` flag is not set.
+    4. Installs required packages in the environment.
+    5. Installs Kamodo from its repository.
+    6. Enables the Jupyter kernel for the environment.
+
+    Command-line Arguments:
+        --clean : Optional argument to remove the specified Conda environment.
+
+    Note:
+        Ensure that the required utilities (`mamba`, `conda`, `Kamodo`) are available
+        in the system's PATH.
+
+    """
     settings_file = "oss_kamodo_installer_settings.json"  # JSON file containing user settings
     settings = read_settings(settings_file)
 
     env_name = settings["env_name"]
     packages = settings["packages"]
-    
+
     # Option to tear down the environment
     if "--clean" in sys.argv:
         tear_down_env(env_name)
         return
-    
+
     # Step 1: Create the Conda environment using Mamba
     create_mamba_env(env_name)
-    
+
     # Step 2: Install required packages
     install_packages(env_name, packages)
-    
+
     # Step 3: Clone and install Kamodo
     install_kamodo_ccmc(env_name)
-    
+
     # Step 4: Enable the Jupyter kernel for the environment
     enable_jupyter_kernel(env_name)
 
