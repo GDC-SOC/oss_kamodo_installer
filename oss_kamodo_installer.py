@@ -54,10 +54,16 @@ logging.info(INITIAL_MESSAGE)
 def read_settings(json_file):
     """Reads settings from a JSON file and applies defaults."""
     try:
-        with open(json_file, 'r') as file:
+        with open(json_file, 'r', encoding='utf-8') as file:
             settings = json.load(file)
-    except Exception as e:
-        logging.error(f"Error reading JSON file: {e}")
+    except FileNotFoundError:
+        logging.error("JSON file not found: %s", json_file)
+        sys.exit(1)
+    except json.JSONDecodeError:
+        logging.error("Error decoding JSON file: %s", json_file)
+        sys.exit(1)
+    except IOError as e:
+        logging.error("I/O error while reading JSON file: %s", e)
         sys.exit(1)
 
     # Apply defaults if keys are missing
@@ -72,11 +78,21 @@ def read_settings(json_file):
 def create_mamba_env(env_name):
     """Creates a Conda environment using Mamba."""
     try:
-        logging.info(f"Creating Conda environment: '{env_name}'")
+        logging.info("Creating Conda environment: %s", env_name)
         subprocess.check_call(["mamba", "create", "-n", env_name, "python=3.7", "-y"])
-        logging.info(f"Conda environment '{env_name}' created successfully.")
-    except Exception as e:
-        logging.error(f"Error creating Conda environment '{env_name}': {e}")
+        logging.info("Conda environment %s created successfully.", env_name)
+    except subprocess.CalledProcessError as e:
+        logging.error(
+            "Mamba command failed with exit code %s while creating Conda environment %s.",
+            e.returncode, env_name)
+        sys.exit(1)
+    except FileNotFoundError:
+        logging.error(
+            "Mamba is not installed or not found in PATH. Please install Mamba and try again."
+        )
+        sys.exit(1)
+    except OSError as e:
+        logging.error("An OS error occurred while creating Conda environment %s: %s", env_name, e)
         sys.exit(1)
 
 def install_packages(env_name, packages):
@@ -88,10 +104,21 @@ def install_packages(env_name, packages):
                                env_name,
                                "-c",
                                "conda-forge"] + packages + ["-y"])
-        logging.info(f"Packages installed successfully in environment '{env_name}'.")
-
-    except Exception as e:
-        logging.error(f"Error installing packages in environment '{env_name}': {e}")
+        logging.info("Packages installed successfully in environment %s.", env_name)
+    except subprocess.CalledProcessError as e:
+        logging.error(
+            "Mamba command failed with exit code %s while installing packages in environment %s.",
+            e.returncode, env_name)
+        sys.exit(1)
+    except FileNotFoundError:
+        logging.error(
+            "Mamba is not installed or not found in PATH. Please install Mamba and try again."
+        )
+        sys.exit(1)
+    except OSError as e:
+        logging.error(
+            "An OS error occurred while installing packages in environment %s: %s",
+                      env_name, e)
         sys.exit(1)
 
 def install_kamodo_ccmc(env_name):
@@ -108,7 +135,7 @@ def install_kamodo_ccmc(env_name):
 
     try:
         if os.path.exists(clone_dir):
-            logging.info(f"Directory '{clone_dir}' already exists. Deleting it to proceed.")
+            logging.info("Directory %s already exists. Deleting it to proceed.", clone_dir)
             shutil.rmtree(clone_dir)
 
         logging.info("Cloning the Kamodo repository...")
@@ -120,9 +147,18 @@ def install_kamodo_ccmc(env_name):
         subprocess.check_call([
             "conda", "run", "-n", env_name, "pip", "install", "Kamodo"
         ])
-        logging.info(f"Kamodo installed successfully in {env_name}.")
-    except Exception as e:
-        logging.error(f"Error installing Kamodo: {e}")
+        logging.info("Kamodo installed successfully in %s.", env_name)
+    except subprocess.CalledProcessError as e:
+        logging.error("Command failed with exit code %s: %s", e.returncode, e)
+        sys.exit(1)
+    except FileNotFoundError as e:
+        logging.error("Required executable not found: %s", e)
+        sys.exit(1)
+    except PermissionError as e:
+        logging.error("Permission error occurred: %s", e)
+        sys.exit(1)
+    except OSError as e:
+        logging.error("An OS error occurred: %s", e)
         sys.exit(1)
 
 def enable_jupyter_kernel(env_name):
@@ -135,9 +171,27 @@ def enable_jupyter_kernel(env_name):
             "--user", "--name", env_name,
             "--display-name", f"Python ({env_name})"
         ])
-        logging.info(f"Jupyter kernel for environment '{env_name}' installed successfully.")
-    except Exception as e:
-        logging.error(f"Error enabling Jupyter kernel: {e}")
+        logging.info("Jupyter kernel for environment %s installed successfully.",
+                     env_name)
+    except subprocess.CalledProcessError as e:
+        logging.error(
+            "Command failed with exit code %s while enabling Jupyter kernel for environment %s.",
+            e.returncode, env_name)
+        sys.exit(1)
+    except FileNotFoundError:
+        logging.error(
+            "Required executable not found. Ensure that Mamba, Conda, and Python are in PATH."
+        )
+        sys.exit(1)
+    except PermissionError as e:
+        logging.error(
+            "Permission error while enabling Jupyter kernel: %s",
+            e)
+        sys.exit(1)
+    except OSError as e:
+        logging.error(
+            "An OS error occurred while enabling Jupyter kernel: %s",
+            e)
         sys.exit(1)
 
 def tear_down_env(env_name):
