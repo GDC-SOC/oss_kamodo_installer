@@ -1,6 +1,12 @@
 name: Pylint
 
-on: [push]
+on:
+  push:
+    branches:
+      - '**'  # Matches all branches (you can specify specific branches if needed, e.g., 'main', 'dev')
+  pull_request:
+    branches:
+      - '**'  # Matches all branches for PRs as well
 
 jobs:
   build:
