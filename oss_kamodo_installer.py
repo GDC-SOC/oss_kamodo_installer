@@ -194,9 +194,41 @@ def enable_jupyter_kernel(env_name):
             e)
         sys.exit(1)
 
-def tear_down_env(env_name):
-    """Deletes the Conda environment."""
+def kernel_exists(kernel_name):
+    """Check if a Jupyter kernel spec exists."""
     try:
+        result = subprocess.check_output(["jupyter", "kernelspec", "list", "--json"])
+        kernel_specs = json.loads(result).get("kernelspecs", {})
+        return kernel_name in kernel_specs
+    except subprocess.CalledProcessError as e:
+        logging.warning("Subprocess error while checking kernel specs: %s", e)
+    except FileNotFoundError as e:
+        logging.warning("The 'jupyter' command was not found: %s", e)
+    except json.JSONDecodeError as e:
+        logging.warning("Failed to decode JSON output from 'jupyter kernelspec list': %s", e)
+    return False
+
+def tear_down_env(env_name):
+    """Deletes the Conda environment and removes the associated Jupyter kernel."""
+    try:
+        # Check if the kernel exists before attempting to remove it
+        if kernel_exists(env_name):
+            subprocess.check_call([
+                "jupyter", "kernelspec", "remove", env_name, "-f"
+            ])
+            logging.info("Jupyter kernel for environment '%s' has been removed.", env_name)
+        else:
+            logging.info("Jupyter kernel for '%s' does not exist. No action needed.", env_name)
+    except subprocess.CalledProcessError as e:
+        logging.warning("Failed to remove Jupyter kernel for '%s'. Process error: %s", env_name, e)
+    except FileNotFoundError as e:
+        logging.warning(
+            "The 'jupyter' command was not found. Ensure Jupyter is in PATH. Error: %s",
+            e
+        )
+
+    try:
+        # Remove the Conda environment
         subprocess.check_call(["conda", "env", "remove", "-n", env_name, "-y"])
         logging.info("Conda environment '%s' has been removed.", env_name)
     except subprocess.CalledProcessError as e:
@@ -205,8 +237,43 @@ def tear_down_env(env_name):
     except FileNotFoundError as e:
         logging.error(
             "The 'conda' command was not found. Ensure Conda is installed and in PATH. Error: %s",
-            e)
+            e
+        )
         sys.exit(1)
+
+    try:
+        # Remove the cloned repository
+        clean_cloned_repository('Kamodo')
+    except PermissionError as e:
+        logging.error("Permission error while cleaning cloned repository: %s", e)
+    except FileNotFoundError as e:
+        logging.error("The cloned repository directory was not found: %s", e)
+    except OSError as e:
+        logging.error("OS error occurred while cleaning cloned repository: %s", e)
+
+
+def clean_cloned_repository(clone_dir):
+    """Removes the cloned repository directory."""
+    try:
+        if os.path.exists(clone_dir):
+            shutil.rmtree(clone_dir)
+            logging.info("Cloned repository '%s' has been successfully removed.",
+                         clone_dir)
+        else:
+            logging.info("Cloned repository directory '%s' does not exist. No action needed.",
+                         clone_dir)
+    except PermissionError as e:
+        logging.error("Permission error while removing cloned repository '%s': %s",
+                      clone_dir,
+                      e)
+    except FileNotFoundError as e:
+        logging.error("Directory not found while attempting to remove cloned repository %s: %s",
+                      clone_dir,
+                      e)
+    except OSError as e:
+        logging.error("OS error occurred while removing cloned repository '%s': %s",
+                      clone_dir,
+                      e)
 
 def main():
     """
