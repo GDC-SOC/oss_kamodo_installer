@@ -18,7 +18,7 @@ The `oss_kamodo_installer` script automates the setup and installation of the Ka
 ## How to Run
 
 ### 1. Clone the Repository
-Clone the `oss_kamodo_installer` repository to your local machine:
+Clone the `oss_kamodo_installer` repository to your local machine or the GDC Open Science Studio:
 ```bash
 git clone https://github.com/GDC-SOC/oss_kamodo_installer.git
 cd oss_kamodo_installer
